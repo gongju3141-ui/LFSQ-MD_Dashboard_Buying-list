@@ -1,164 +1,657 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LFSQ MD Team Performance Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            background-color: #020617;
-            margin: 0;
-            padding: 40px;
-            font-family: 'Inter', 'Noto Sans KR', sans-serif;
-            color: #f8fafc;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LFSQ MD 입고 플랜 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #f2f0eb;
+  --bg2:      #ebe8e2;
+  --bg3:      #e2dfd8;
+  --surface:  #faf9f6;
+  --border:   rgba(0,0,0,0.07);
+  --border2:  rgba(0,0,0,0.13);
+  --text:     #1c1a17;
+  --text2:    #5c5850;
+  --text3:    #9c9890;
+  --text4:    #c4c0b8;
+  --pb:       #2563eb;  --pb-s: rgba(37,99,235,0.10);
+  --multi:    #059669;  --multi-s: rgba(5,150,105,0.10);
+  --lc:       #c2810a;  --lc-s: rgba(194,129,10,0.10);
+  --kpop:     #7c3aed;  --kpop-s: rgba(124,58,237,0.10);
+  --up:       #059669;
+  --dn:       #dc2626;
+  --gray:     #9ca3af;  --gray-s: rgba(156,163,175,0.13);
+  --r:        12px;
+  --rl:       18px;
+  --sh:       0 1px 3px rgba(0,0,0,0.06), 0 4px 14px rgba(0,0,0,0.04);
+}
+body { background:var(--bg); color:var(--text); font-family:'DM Sans','Noto Sans KR',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-        .dashboard-container {
-            width: 100%;
-            max-width: 1200px;
-            background-color: #0f172a;
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+/* ── Upload ── */
+.upload-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px; }
+.upload-card { background:var(--surface); border-radius:var(--rl); border:1px solid var(--border); box-shadow:0 4px 24px rgba(0,0,0,0.08); padding:48px 40px; width:100%; max-width:480px; text-align:center; }
+.upload-icon { width:52px; height:52px; border-radius:14px; background:var(--pb-s); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; color:var(--pb); font-size:20px; }
+.upload-card h2 { font-size:19px; font-weight:600; color:var(--text); margin-bottom:8px; letter-spacing:-.02em; }
+.upload-card p { font-size:13px; color:var(--text2); line-height:1.7; margin-bottom:28px; }
+.drop-zone { border:1.5px dashed var(--border2); border-radius:var(--r); padding:28px 20px; cursor:pointer; transition:all .2s; background:var(--bg2); margin-bottom:14px; }
+.drop-zone:hover, .drop-zone.dragover { border-color:var(--pb); background:var(--pb-s); }
+.drop-zone i { font-size:24px; color:var(--pb); margin-bottom:10px; display:block; }
+.dz-main { font-size:13px; color:var(--text); font-weight:500; margin-bottom:4px; }
+.dz-sub  { font-size:11px; color:var(--text3); }
+.btn-primary { width:100%; padding:12px; border-radius:var(--r); background:var(--pb); color:#fff; font-size:13px; font-weight:600; border:none; cursor:pointer; font-family:inherit; transition:opacity .15s; }
+.btn-primary:hover { opacity:.88; }
+#fileInput { display:none; }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding-bottom: 20px;
-        }
+/* ── Layout ── */
+.dashboard { display:none; }
+.dashboard.visible { display:block; animation:fadeUp .4s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-        .header h1 { font-size: 28px; margin: 0; background: linear-gradient(to right, #60a5fa, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+/* top bar */
+.topbar {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:0 32px; display:flex; align-items:center; justify-content:space-between;
+  height:58px; gap:16px; flex-wrap:wrap;
+  position:sticky; top:0; z-index:100;
+  box-shadow:0 1px 0 var(--border), 0 2px 8px rgba(0,0,0,0.04);
+}
+.topbar-l { display:flex; align-items:center; gap:12px; }
+.logo { width:30px; height:30px; border-radius:7px; background:var(--pb); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; letter-spacing:.04em; flex-shrink:0; }
+.top-title { font-size:13px; font-weight:600; color:var(--text); letter-spacing:-.01em; }
+.top-sub   { font-size:11px; color:var(--text3); margin-top:1px; }
+.topbar-r  { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ref-badge { display:flex; align-items:center; gap:6px; background:var(--pb-s); border:1px solid rgba(37,99,235,.2); border-radius:20px; padding:4px 12px; font-size:11px; font-weight:600; color:var(--pb); }
+.file-pill { display:flex; align-items:center; gap:5px; background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:11px; color:var(--text2); }
+.file-pill i { color:var(--up); font-size:10px; }
+.btn-sm { padding:6px 13px; border-radius:8px; font-size:11px; font-weight:600; background:var(--surface); border:1px solid var(--border2); color:var(--text2); cursor:pointer; font-family:inherit; transition:all .15s; }
+.btn-sm:hover { background:var(--bg3); color:var(--text); }
 
-        /* KPI Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 40px;
-        }
+.main { padding:24px 32px; max-width:1280px; margin:0 auto; }
 
-        .kpi-card {
-            background: rgba(30, 41, 59, 0.7);
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+/* section labels */
+.sl { font-size:10px; font-weight:600; letter-spacing:.09em; color:var(--text3); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.sl::after { content:''; flex:1; height:1px; background:var(--border); }
 
-        .kpi-card .label { color: #94a3b8; font-size: 13px; margin-bottom: 10px; }
-        .kpi-card .value { font-size: 24px; font-weight: 700; color: #3b82f6; }
+/* ── KPI ── */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:480px){.kpi-row{grid-template-columns:1fr;}}
 
-        /* Table Style */
-        .section-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #cbd5e1; display: flex; align-items: center; gap: 10px; }
-        .section-title i { color: #3b82f6; }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; box-shadow:var(--sh); position:relative; overflow:hidden; }
+.kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:var(--r) var(--r) 0 0; }
+.kpi.c-pb::before    { background:var(--pb); }
+.kpi.c-multi::before { background:var(--multi); }
+.kpi.c-lc::before    { background:var(--lc); }
+.kpi.c-kpop::before  { background:var(--kpop); }
+.kpi.c-gray::before  { background:var(--gray); }
+.kpi-icon { font-size:15px; margin-bottom:10px; }
+.kpi.c-pb .kpi-icon    { color:var(--pb); }
+.kpi.c-multi .kpi-icon { color:var(--multi); }
+.kpi.c-lc .kpi-icon    { color:var(--lc); }
+.kpi.c-kpop .kpi-icon  { color:var(--kpop); }
+.kpi.c-gray .kpi-icon  { color:var(--gray); }
+.kpi-lbl { font-size:11px; color:var(--text3); margin-bottom:6px; font-weight:500; }
+.kpi-val { font-size:22px; font-weight:700; letter-spacing:-.04em; color:var(--text); line-height:1; }
+.kpi.c-gray .kpi-val { color:var(--gray); }
+.kpi-val sup { font-size:11px; font-weight:400; color:var(--text3); margin-left:2px; letter-spacing:0; }
+.kpi-foot { font-size:11px; color:var(--text3); margin-top:5px; }
+.up  { color:var(--up);  font-weight:600; }
+.dn  { color:var(--dn);  font-weight:600; }
+.kpi.c-gray .kpi-foot { color:#b0afab; }
 
-        .table-wrapper {
-            background: rgba(30, 41, 59, 0.4);
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            margin-bottom: 40px;
-        }
+/* ── Cards ── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:18px 20px; box-shadow:var(--sh); }
+.card-title { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:14px; }
 
-        table { width: 100%; border-collapse: collapse; }
-        th { background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 15px; text-align: left; font-size: 14px; }
-        td { padding: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 14px; }
-        tr:hover { background: rgba(255, 255, 255, 0.02); }
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+@media(max-width:720px){.g2{grid-template-columns:1fr;}}
 
-        .tag { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-        .tag-pb { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .tag-multi { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .tag-lc { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .tag-kpop { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+.leg { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.leg-i { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text2); }
+.leg-d { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
 
-        .growth-up { color: #10b981; }
-        .growth-down { color: #ef4444; }
+/* ── Category proportion squares ── */
+.sq-wrap { display:flex; flex-direction:column; gap:8px; }
+.sq-row  { display:flex; align-items:center; gap:10px; }
+.sq-label { font-size:12px; font-weight:500; color:var(--text2); width:76px; flex-shrink:0; }
+.sq-track { flex:1; height:28px; background:var(--bg3); border-radius:5px; overflow:hidden; position:relative; }
+.sq-fill  { height:100%; border-radius:5px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; transition:width .8s cubic-bezier(.4,0,.2,1); min-width:28px; }
+.sq-fill span { font-size:11px; font-weight:600; color:#fff; white-space:nowrap; }
+.sq-vol   { font-size:12px; font-weight:600; color:var(--text); width:52px; text-align:right; flex-shrink:0; }
+.sq-pct-label { font-size:11px; color:var(--text3); width:34px; text-align:right; flex-shrink:0; }
 
-        .footer-note { text-align: center; color: #64748b; font-size: 12px; margin-top: 20px; }
-    </style>
+/* ── Monthly table ── */
+.tbl-wrap { overflow-x:auto; border-radius:var(--r); border:1px solid var(--border); box-shadow:var(--sh); margin-bottom:20px; }
+.mtbl { width:100%; border-collapse:collapse; background:var(--surface); min-width:700px; }
+.mtbl th { background:var(--bg2); font-size:10px; font-weight:600; color:var(--text2); padding:10px 14px; text-align:center; border-bottom:1px solid var(--border2); border-right:1px solid var(--border); white-space:nowrap; letter-spacing:.04em; }
+.mtbl th.th-cat { text-align:left; background:var(--bg3); min-width:100px; }
+.mtbl th.th-cur { background:rgba(37,99,235,.07); color:var(--pb); border-bottom:2px solid var(--pb); }
+.mtbl td { padding:10px 14px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); font-size:12px; vertical-align:top; }
+.mtbl td.td-cat { font-weight:600; background:var(--bg2); white-space:nowrap; vertical-align:middle; }
+.mtbl td.td-vol { text-align:center; min-width:110px; }
+.mtbl tr:last-child td { border-bottom:none; }
+.mtbl tr:hover td { background:var(--bg2); }
+.mtbl tr:hover td.td-cat { background:var(--bg3); }
+.v-main { font-size:13px; font-weight:600; color:var(--text); }
+.v-main sup { font-size:9px; font-weight:400; color:var(--text3); }
+.v-prev { font-size:10px; color:var(--text3); margin-top:3px; }
+.v-bar  { height:3px; background:var(--bg3); border-radius:2px; margin-top:5px; }
+.v-bar-f { height:100%; border-radius:2px; }
+.v-empty { color:var(--text4); }
+.mtbl-total td { background:var(--bg2) !important; }
+.mtbl-total .v-main { color:var(--text2); }
+
+/* cat badges */
+.badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:5px; font-size:11px; font-weight:600; }
+.b-pb    { background:var(--pb-s);    color:var(--pb);    }
+.b-multi { background:var(--multi-s); color:var(--multi); }
+.b-lc    { background:var(--lc-s);    color:var(--lc);    }
+.b-kpop  { background:var(--kpop-s);  color:var(--kpop);  }
+
+/* ── Items table ── */
+.itbl-wrap { overflow-x:auto; border-radius:var(--r); border:1px solid var(--border); box-shadow:var(--sh); margin-bottom:36px; }
+.itbl { width:100%; border-collapse:collapse; background:var(--surface); min-width:560px; }
+.itbl th { background:var(--bg2); font-size:10px; font-weight:600; color:var(--text3); letter-spacing:.07em; text-transform:uppercase; padding:9px 14px; text-align:left; border-bottom:1px solid var(--border2); }
+.itbl td { padding:9px 14px; border-bottom:1px solid var(--border); font-size:12px; color:var(--text); }
+.itbl tr:last-child td { border-bottom:none; }
+.itbl tr:hover td { background:var(--bg2); }
+.spark { display:flex; align-items:center; gap:8px; }
+.spark-bar { height:4px; border-radius:2px; flex-shrink:0; }
+</style>
 </head>
 <body>
 
-    <div class="dashboard-container">
-        <div class="header">
-            <h1>LFSQ MD Team Performance Dashboard (2025-2026)</h1>
-            <div style="font-size: 14px; color: #94a3b8;">최종 업데이트: 2026-04-09</div>
-        </div>
+<!-- Upload -->
+<div class="upload-screen" id="uploadScreen">
+  <div class="upload-card">
+    <div class="upload-icon"><i class="fa-solid fa-chart-bar"></i></div>
+    <h2>LFSQ MD 입고 플랜 대시보드</h2>
+    <p>25년·26년 시트가 분리된 엑셀 파일을 업로드하면<br>기준월 기준으로 대시보드가 자동 생성됩니다.</p>
+    <div class="drop-zone" id="dropZone">
+      <i class="fa-solid fa-file-excel"></i>
+      <div class="dz-main">파일을 여기에 드래그하세요</div>
+      <div class="dz-sub">.xlsx / .xls 형식 지원</div>
+    </div>
+    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
+      <i class="fa-solid fa-upload" style="margin-right:7px"></i>파일 선택하기
+    </button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
+</div>
 
-        <div class="kpi-grid">
-            <div class="kpi-card"><div class="label">26년 총 바잉 목표</div><div class="value">₩ 14.2B</div></div>
-            <div class="kpi-card"><div class="label">전년 대비 성장률</div><div class="value" style="color:#10b981;">+18.4%</div></div>
-            <div class="kpi-card"><div class="label">주력 카테고리</div><div class="value">LFSQ_PB</div></div>
-            <div class="kpi-card"><div class="label">운영 IP 수</div><div class="value">12개 팀</div></div>
-        </div>
+<!-- Dashboard -->
+<div class="dashboard" id="dashboard">
 
-        <div class="section-title"><i class="fa-solid fa-table-list"></i> 26년 월별 입고 및 25년 비교 내역</div>
-        
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>구분</th>
-                        <th>월별 주요 입고 품목 (2026)</th>
-                        <th>26년 예상 볼륨</th>
-                        <th>25년 실적 볼륨</th>
-                        <th>성장률(YoY)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><span class="tag tag-pb">LFSQ_PB</span></td>
-                        <td>시그니처 다운 점퍼, 베이직 니트 셋업</td>
-                        <td>₩ 6.0B</td>
-                        <td>₩ 4.2B</td>
-                        <td class="growth-up">▲ 42.8%</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tag tag-multi">Multi</span></td>
-                        <td>글로벌 스니커즈 라인, 스트릿 잡화</td>
-                        <td>₩ 4.1B</td>
-                        <td>₩ 3.8B</td>
-                        <td class="growth-up">▲ 7.9%</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tag tag-lc">LC</span></td>
-                        <td>디자이너 콜라보 캡슐 컬렉션</td>
-                        <td>₩ 2.4B</td>
-                        <td>₩ 2.1B</td>
-                        <td class="growth-up">▲ 14.3%</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tag tag-kpop">K POP</span></td>
-                        <td>아티스트 굿즈 및 공식 머천다이즈</td>
-                        <td>₩ 1.7B</td>
-                        <td>₩ 1.9B</td>
-                        <td class="growth-down">▼ 10.5%</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-l">
+      <div class="logo">LF</div>
+      <div>
+        <div class="top-title">LFSQ MD 입고 플랜 대시보드</div>
+        <div class="top-sub">Buying Plan 2025–2026</div>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <div class="ref-badge"><i class="fa-regular fa-calendar"></i><span id="refBadge">기준월 로딩 중</span></div>
+      <div class="file-pill"><i class="fa-solid fa-circle-check"></i><span id="fileChip">—</span></div>
+      <span style="font-size:11px;color:var(--text3)" id="updateTxt">—</span>
+      <button class="btn-sm" onclick="reupload()"><i class="fa-solid fa-rotate" style="margin-right:5px"></i>파일 교체</button>
+    </div>
+  </div>
 
-        <div class="footer-note">
-            ※ 위 데이터는 구글 시트 실시간 연동 스크립트가 적용되어 시트 수정 시 자동 업데이트됩니다.
+  <div class="main">
+
+    <!-- KPI -->
+    <div class="sl" style="margin-top:4px">핵심 지표 <span style="font-size:10px;color:var(--pb);font-weight:500;letter-spacing:0;text-transform:none" id="refMonthLabel"></span></div>
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- Charts -->
+    <div class="sl">카테고리 현황 <span style="font-size:10px;color:var(--text3);font-weight:400;letter-spacing:0;text-transform:none" id="chartSubLabel"></span></div>
+    <div class="g2" style="margin-bottom:20px">
+
+      <!-- Category proportion -->
+      <div class="card">
+        <div class="card-title">26년 카테고리 비중 (기준월 누계)</div>
+        <div class="sq-wrap" id="catSquares"></div>
+      </div>
+
+      <!-- YoY bar chart -->
+      <div class="card">
+        <div class="card-title">YoY 비교 — 카테고리별 (억원)</div>
+        <div class="leg">
+          <div class="leg-i"><span class="leg-d" style="background:var(--pb)"></span>26년 (기준월)</div>
+          <div class="leg-i"><span class="leg-d" style="background:var(--gray)"></span>25년 동월</div>
         </div>
+        <div style="position:relative;height:200px">
+          <canvas id="yoyChart" role="img" aria-label="카테고리별 YoY 비교 차트">YoY 비교</canvas>
+        </div>
+      </div>
     </div>
 
-    <script>
-        const SHEET_ID = '1wAthE-EINCi6NVuUfV1ylwgwKyv64QEEgfCRf0LLfP4';
-        const GID = '1417187651';
-        // 실제 데이터 바인딩 로직을 여기에 추가하여 확장할 수 있습니다.
-    </script>
+    <!-- Monthly table -->
+    <div class="sl">월별 입고 상세 — 카테고리 × 월 (26년 볼륨 + 25년 동월 비교)</div>
+    <div class="tbl-wrap" id="monthTableWrap"></div>
+
+    <!-- Monthly trend chart -->
+    <div class="sl">월별 추이</div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">월별 카테고리 입고 볼륨 (억원) — 26년 막대 / 25년 동월 점선</div>
+      <div class="leg" id="trendLeg"></div>
+      <div style="position:relative;height:250px">
+        <canvas id="trendChart" role="img" aria-label="월별 추이 차트">월별 추이</canvas>
+      </div>
+    </div>
+
+    <!-- Items bar chart -->
+    <div class="sl">볼륨 상위 아이템 (26년 기준월)</div>
+    <div class="card" style="margin-bottom:20px">
+      <div id="itemsChartWrap" style="position:relative">
+        <canvas id="itemsChart" role="img" aria-label="상위 아이템 차트">상위 아이템</canvas>
+      </div>
+    </div>
+
+    <!-- Items table -->
+    <div class="sl">전체 아이템 목록 (26년 기준월)</div>
+    <div class="itbl-wrap">
+      <table class="itbl">
+        <thead><tr><th>카테고리</th><th>아이템명</th><th>입고 월</th><th>볼륨</th><th>비중</th></tr></thead>
+        <tbody id="itemsTbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const CATS     = ['LFSQ_PB','Multi','LC','K POP'];
+const CAT_COL  = { 'LFSQ_PB':'var(--pb)', 'Multi':'var(--multi)', 'LC':'var(--lc)', 'K POP':'var(--kpop)' };
+const CAT_HEX  = { 'LFSQ_PB':'#2563eb',   'Multi':'#059669',      'LC':'#c2810a',   'K POP':'#7c3aed'     };
+const CAT_CLS  = { 'LFSQ_PB':'b-pb',       'Multi':'b-multi',      'LC':'b-lc',      'K POP':'b-kpop'      };
+
+// 26y 월 → 대응 25y 월
+const EQUIV_25 = {
+  '26년 4월':'25년 4월','26년 5월':'25년 5월','26년 6월':'25년 6월',
+  '26년 7월':'25년 7월','26년 8월':'25년 8월','26년 9월':'25년 9월',
+  '26년 10월':'25년 10월','26년 11월':'25년 11월','26년 12월':'25년 12월',
+  '27년 1월':'26년 1월','27년 2월':'26년 2월','27년 3월':'26년 3월'
+};
+
+let C = {};  // charts
+let D = null;
+
+/* ── drag & drop ── */
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change', e=>{if(e.target.files[0])processFile(e.target.files[0]);});
+function reupload(){
+  document.getElementById('dashboard').classList.remove('visible');
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('uploadScreen').style.display='flex';
+}
+
+/* ── file process ── */
+function processFile(file){
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const wb = XLSX.read(ev.target.result,{type:'array'});
+      D = parseWB(wb);
+      document.getElementById('fileChip').textContent = file.name;
+      document.getElementById('updateTxt').textContent = '업데이트: '+new Date().toLocaleDateString('ko-KR');
+      document.getElementById('uploadScreen').style.display='none';
+      const dash = document.getElementById('dashboard');
+      dash.style.display='block';
+      setTimeout(()=>dash.classList.add('visible'),10);
+      render(D);
+    } catch(err){ alert('파싱 오류: '+err.message); console.error(err); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ── parse workbook ── */
+function parseWB(wb){
+  const n26 = wb.SheetNames.find(n=>n.includes('26'));
+  const n25 = wb.SheetNames.find(n=>n.includes('25'));
+  const r26 = n26 ? XLSX.utils.sheet_to_json(wb.Sheets[n26],{header:1,defval:null}) : [];
+  const r25 = n25 ? XLSX.utils.sheet_to_json(wb.Sheets[n25],{header:1,defval:null}) : [];
+
+  // ── 26y ──
+  // C4 (row index 3, col index 2) = 총 바잉 볼륨
+  const total26 = +( r26[3]?.[2] || 0 );
+
+  // Cat totals: rows 4-7 (index 4..7), col B=index1, col C=index2
+  const cats26 = {};
+  for(let ri=4;ri<=7;ri++){
+    const row = r26[ri]; if(!row) continue;
+    const nm = row[1]; const val = row[2];
+    if(nm && CATS.includes(String(nm).trim()) && typeof val==='number') cats26[String(nm).trim()] = val;
+  }
+
+  // Month headers: row index 3
+  const mMap26 = {};  // month_name -> col_index (header col, vol col = +1)
+  const hRow26 = r26[3]||[];
+  for(let c=0;c<hRow26.length;c++){
+    const v=hRow26[c];
+    if(v&&typeof v==='string'&&v.includes('년')&&v.includes('월')&&!mMap26[v]) mMap26[v]=c;
+  }
+  const months26list = Object.keys(mMap26);
+
+  // Monthly cat totals: rows 34-37 (index 34..37), col4=cat, vol at mMap26[m]+1
+  const monthly26 = {};
+  const catRowIdx = {34:'LFSQ_PB',35:'Multi',36:'LC',37:'K POP'};
+  for(const [ri,cat] of Object.entries(catRowIdx)){
+    const row = r26[ri]; if(!row) continue;
+    monthly26[cat] = {};
+    for(const [m,ci] of Object.entries(mMap26)){
+      const v = row[ci+1];
+      if(typeof v==='number'&&v>0) monthly26[cat][m]=v;
+    }
+  }
+
+  // Active months (has any data)
+  const activeMonths26 = months26list.filter(m=>CATS.some(c=>(monthly26[c]||{})[m]>0));
+
+  // Reference month = last active month
+  const refMonth = activeMonths26.length ? activeMonths26[activeMonths26.length-1] : (months26list[0]||'');
+
+  // Items from 26y (rows 6-33)
+  const items26 = [];
+  const itemSet = new Set();
+  for(const [m, ci] of Object.entries(mMap26)){
+    let curCat = 'Multi';
+    for(let r=6;r<34;r++){
+      const row=r26[r]; if(!row) continue;
+      if(row[4]&&CATS.includes(String(row[4]).trim())) curCat=String(row[4]).trim();
+      const nm=row[ci]; const vol=row[ci+1];
+      if(nm&&typeof nm==='string'&&nm.trim()&&typeof vol==='number'&&vol>0){
+        const name=nm.trim();
+        if(['Total','품목','볼륨(-vat)','구분'].includes(name)) continue;
+        const key=name+'|'+m;
+        if(!itemSet.has(key)){
+          itemSet.add(key);
+          let cat=curCat;
+          if(/^\[ZNF|^\[B&F|^\[JUG|^\[BT21|^\(ZNF|^\(B&F|^\(JUG|^\(BT21|^\(minini|^\(JG\)|^\(DT\)/.test(name)) cat='LC';
+          else if(/^\(IDLE|^\(ATZ/.test(name)) cat='K POP';
+          else if(/^LF_/.test(name)) cat='LFSQ_PB';
+          items26.push({name,cat,month:m,vol});
+        }
+      }
+    }
+  }
+  items26.sort((a,b)=>b.vol-a.vol);
+
+  // ── 25y ──
+  const total25 = +( r25[3]?.[2] || 0 );
+  const cats25 = {};
+  for(let ri=4;ri<=7;ri++){
+    const row=r25[ri]; if(!row) continue;
+    const nm=row[1]; const val=row[2];
+    if(nm&&CATS.includes(String(nm).trim())&&typeof val==='number') cats25[String(nm).trim()]=val;
+  }
+  const mMap25={};
+  const hRow25=r25[3]||[];
+  for(let c=0;c<hRow25.length;c++){
+    const v=hRow25[c];
+    if(v&&typeof v==='string'&&v.includes('년')&&v.includes('월')&&!mMap25[v]) mMap25[v]=c;
+  }
+  const monthly25={};
+  const catRowIdx25={34:'LFSQ_PB',35:'Multi',36:'LC',37:'K POP'};
+  for(const [ri,cat] of Object.entries(catRowIdx25)){
+    const row=r25[ri]; if(!row) continue;
+    monthly25[cat]={};
+    for(const [m,ci] of Object.entries(mMap25)){
+      const v=row[ci+1];
+      if(typeof v==='number'&&v>0) monthly25[cat][m]=v;
+    }
+  }
+
+  return { total26, cats26, monthly26, months26list, activeMonths26, refMonth, items26,
+           total25, cats25, monthly25 };
+}
+
+/* ── helpers ── */
+const fB  = v => (v/1e8).toFixed(2);
+const fBs = v => (v/1e8).toFixed(1);
+function destroyC(id){ if(C[id]){C[id].destroy();delete C[id];} }
+function pctStr(a,b){ if(!b) return null; const p=((a-b)/b*100); return (p>=0?'▲':'▼')+Math.abs(p).toFixed(0)+'%'; }
+function pctCls(a,b){ if(!b) return ''; return a>=b?'up':'dn'; }
+
+/* ── render ── */
+function render(d){
+  const ref = d.refMonth;
+  const refLabel = ref || '—';
+  document.getElementById('refBadge').textContent = '기준월: '+refLabel;
+  document.getElementById('refMonthLabel').textContent = '— '+refLabel+' 기준';
+  document.getElementById('chartSubLabel').textContent = '— '+refLabel+' 기준';
+
+  /* 기준월 데이터 */
+  const ref25 = EQUIV_25[ref] || null;
+
+  // 기준월 카테고리별 볼륨
+  const refVol26 = {}; // cat -> vol at refMonth
+  for(const cat of CATS) refVol26[cat] = (d.monthly26[cat]||{})[ref]||0;
+  const refTotal26 = Object.values(refVol26).reduce((a,b)=>a+b,0);
+
+  // 기준월 25년 동월
+  const refVol25 = {};
+  for(const cat of CATS) refVol25[cat] = ref25 ? ((d.monthly25[cat]||{})[ref25]||0) : 0;
+  const refTotal25 = Object.values(refVol25).reduce((a,b)=>a+b,0);
+
+  // 기준월 아이템
+  const refItems = d.items26.filter(i => i.month === ref);
+  const refItemCount = refItems.length;
+  const refItemVol   = refItems.reduce((s,i)=>s+i.vol,0);
+
+  // 최대 카테고리 (기준월)
+  const topCat = CATS.reduce((best,c)=>(refVol26[c]||0)>(refVol26[best]||0)?c:best, CATS[0]);
+
+  /* ── KPI ── */
+  const yoy = refTotal25>0 ? ((refTotal26-refTotal25)/refTotal25*100).toFixed(1) : null;
+  const kpis = [
+    { cls:'c-pb',   icon:'fa-won-sign',    lbl:'26년 총 바잉 볼륨',   val:fBs(d.total26),   unit:'억원',
+      foot: yoy!==null
+        ? (parseFloat(yoy)>=0?`<span class="up">▲ ${yoy}%</span>`:`<span class="dn">▼ ${Math.abs(yoy)}%</span>`)+ ' vs 25년 동월'
+        : '전체 연간 기준' },
+    { cls:'c-gray', icon:'fa-clock-rotate-left', lbl:'25년 총 바잉 볼륨', val:fBs(d.total25), unit:'억원',
+      foot:'전년 실적 기준' },
+    { cls:'c-multi',icon:'fa-trophy',      lbl:'최대 카테고리 (기준월)', val:topCat,          unit:'',
+      foot: refVol26[topCat]>0 ? fBs(refVol26[topCat])+'억원' : '데이터 없음' },
+    { cls:'c-lc',   icon:'fa-boxes-stacked',lbl:'기준월 아이템 수',     val:refItemCount,    unit:'개',
+      foot: fBs(refItemVol)+'억원 합산' },
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="kpi-icon"><i class="fa-solid ${k.icon}"></i></div>
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-val">${k.val}<sup>${k.unit}</sup></div>
+      <div class="kpi-foot">${k.foot}</div>
+    </div>`).join('');
+
+  /* ── Category proportion (square bars) ── */
+  const maxVol = Math.max(...CATS.map(c=>refVol26[c]||0), 1);
+  const sqHtml = CATS.map(cat=>{
+    const v = refVol26[cat]||0;
+    const pct = refTotal26>0 ? ((v/refTotal26)*100).toFixed(1) : '0.0';
+    const w   = maxVol>0 ? Math.max((v/maxVol)*100,0) : 0;
+    return `<div class="sq-row">
+      <div class="sq-label"><span class="badge ${CAT_CLS[cat]}">${cat}</span></div>
+      <div class="sq-track">
+        <div class="sq-fill" style="width:${w.toFixed(1)}%;background:${CAT_HEX[cat]}">
+          ${w>15?`<span>${pct}%</span>`:''}
+        </div>
+      </div>
+      <div class="sq-vol">${v>0?fB(v)+'억':'—'}</div>
+      <div class="sq-pct-label">${w<=15&&v>0?pct+'%':''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('catSquares').innerHTML = sqHtml;
+
+  /* ── YoY bar chart ── */
+  destroyC('yoyChart');
+  const yoyCats = CATS.filter(c=>(refVol26[c]||0)+(refVol25[c]||0)>0);
+  C['yoyChart'] = new Chart(document.getElementById('yoyChart'),{
+    type:'bar',
+    data:{
+      labels:yoyCats,
+      datasets:[
+        {label:'26년',data:yoyCats.map(c=>(refVol26[c]||0)/1e8),backgroundColor:yoyCats.map(c=>CAT_HEX[c]),borderRadius:5},
+        {label:'25년',data:yoyCats.map(c=>(refVol25[c]||0)/1e8),backgroundColor:'#d1d5db',borderRadius:5}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}억원`,
+          afterBody: ctx=>{
+            const cat=yoyCats[ctx[0].dataIndex];
+            const v26=refVol26[cat]||0, v25=refVol25[cat]||0;
+            if(!v25) return '';
+            const p=((v26-v25)/v25*100).toFixed(1);
+            return `YoY: ${parseFloat(p)>=0?'▲':'▼'}${Math.abs(p)}%`;
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#9c9890',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+        y:{ticks:{color:'#9c9890',callback:v=>v+'억',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}
+      }
+    }
+  });
+
+  /* ── Monthly table ── */
+  const activeMon = d.activeMonths26;
+  const tblMax = Math.max(...CATS.flatMap(c=>activeMon.map(m=>(d.monthly26[c]||{})[m]||0)),1);
+  let tblHtml = `<table class="mtbl"><thead><tr><th class="th-cat">카테고리</th>`;
+  for(const m of activeMon){
+    const isCur = m===ref;
+    tblHtml += `<th class="${isCur?'th-cur':''}">${m.replace('년 ','년\u00a0')}${isCur?' ★':''}</th>`;
+  }
+  tblHtml += '</tr></thead><tbody>';
+
+  for(const cat of CATS){
+    tblHtml += `<tr><td class="td-cat"><span class="badge ${CAT_CLS[cat]}">${cat}</span></td>`;
+    for(const m of activeMon){
+      const v26 = (d.monthly26[cat]||{})[m]||0;
+      const m25k = EQUIV_25[m];
+      const v25  = m25k ? ((d.monthly25[cat]||{})[m25k]||0) : 0;
+      const bw   = tblMax>0 ? Math.round((v26/tblMax)*100) : 0;
+      if(v26===0){
+        tblHtml += `<td class="td-vol"><span class="v-empty">—</span></td>`;
+      } else {
+        const ps = pctStr(v26,v25), pc = pctCls(v26,v25);
+        tblHtml += `<td class="td-vol">
+          <div class="v-main">${fB(v26)}<sup>억</sup></div>
+          ${v25>0?`<div class="v-prev">25년 ${fB(v25)}억 <span class="${pc}">${ps}</span></div>`:
+                  `<div class="v-prev" style="color:var(--text4)">25년 실적없음</div>`}
+          <div class="v-bar"><div class="v-bar-f" style="width:${bw}%;background:${CAT_HEX[cat]}"></div></div>
+        </td>`;
+      }
+    }
+    tblHtml += '</tr>';
+  }
+  // total row
+  tblHtml += `<tr class="mtbl-total"><td class="td-cat" style="font-size:11px;color:var(--text3)">합계</td>`;
+  for(const m of activeMon){
+    const t26=CATS.reduce((s,c)=>s+((d.monthly26[c]||{})[m]||0),0);
+    const m25k=EQUIV_25[m];
+    const t25=m25k?CATS.reduce((s,c)=>s+((d.monthly25[c]||{})[m25k]||0),0):0;
+    if(!t26){tblHtml+=`<td class="td-vol"><span class="v-empty">—</span></td>`;continue;}
+    const ps=pctStr(t26,t25),pc=pctCls(t26,t25);
+    tblHtml+=`<td class="td-vol">
+      <div class="v-main">${fB(t26)}<sup>억</sup></div>
+      ${t25>0?`<div class="v-prev">25년 ${fB(t25)}억 <span class="${pc}">${ps}</span></div>`:''}
+    </td>`;
+  }
+  tblHtml += '</tr></tbody></table>';
+  document.getElementById('monthTableWrap').innerHTML = tblHtml;
+
+  /* ── Monthly trend chart ── */
+  destroyC('trendChart');
+  const trendCats = CATS.filter(c=>activeMon.some(m=>(d.monthly26[c]||{})[m]>0));
+  document.getElementById('trendLeg').innerHTML =
+    trendCats.map(c=>`<div class="leg-i"><span class="leg-d" style="background:${CAT_HEX[c]}"></span>${c} 26년</div>`).join('')+
+    `<div class="leg-i"><span class="leg-d" style="background:#9ca3af;border-radius:50%"></span>25년 동월 합계</div>`;
+
+  const shortLabels = activeMon.map(m=>m.replace('년 ','년\u00a0'));
+  const line25 = activeMon.map(m=>{
+    const m25k=EQUIV_25[m];
+    return m25k ? +(CATS.reduce((s,c)=>s+((d.monthly25[c]||{})[m25k]||0),0)/1e8).toFixed(2) : 0;
+  });
+
+  C['trendChart'] = new Chart(document.getElementById('trendChart'),{
+    type:'bar',
+    data:{
+      labels:shortLabels,
+      datasets:[
+        ...trendCats.map(cat=>({
+          type:'bar', label:cat+' 26년',
+          data:activeMon.map(m=>+((d.monthly26[cat]||{})[m]||0/1e8/1e8).toFixed?((d.monthly26[cat]||{})[m]||0)/1e8:0).map(v=>+v.toFixed(2)),
+          backgroundColor:CAT_HEX[cat]+'cc', borderRadius:4,
+        })),
+        {type:'line',label:'25년 동월 합계',data:line25,
+         borderColor:'#9ca3af',borderWidth:1.5,borderDash:[4,3],
+         pointRadius:3,pointBackgroundColor:'#9ca3af',tension:.3,fill:false}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}억원`}}},
+      scales:{
+        x:{ticks:{autoSkip:false,maxRotation:0,color:'#9c9890',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+        y:{ticks:{color:'#9c9890',callback:v=>v+'억',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}
+      }
+    }
+  });
+
+  /* ── Items chart ── */
+  destroyC('itemsChart');
+  const topItems = refItems.slice(0,12);
+  const ih = Math.max(240, topItems.length*36+60);
+  document.getElementById('itemsChartWrap').style.height = ih+'px';
+  C['itemsChart'] = new Chart(document.getElementById('itemsChart'),{
+    type:'bar',
+    data:{
+      labels:topItems.map(i=>i.name.length>28?i.name.slice(0,28)+'…':i.name),
+      datasets:[{label:'볼륨',data:topItems.map(i=>+(i.vol/1e8).toFixed(2)),
+        backgroundColor:topItems.map(i=>CAT_HEX[i.cat]+'cc'),borderRadius:4}]
+    },
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.x.toFixed(2)}억원`}}},
+      scales:{
+        x:{ticks:{color:'#9c9890',callback:v=>v+'억',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+        y:{ticks:{color:'#5c5850',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+
+  /* ── Items table ── */
+  const maxIV = refItems[0]?.vol||1;
+  document.getElementById('itemsTbody').innerHTML = refItems.slice(0,40).map(i=>{
+    const pct=((i.vol/refTotal26||1)*100).toFixed(1);
+    const bw=Math.round((i.vol/maxIV)*80);
+    return `<tr>
+      <td><span class="badge ${CAT_CLS[i.cat]}">${i.cat}</span></td>
+      <td>${i.name}</td>
+      <td style="color:var(--text3);font-size:11px">${i.month.replace('년 ','년\u00a0')}</td>
+      <td><div class="spark">
+        <span style="font-weight:600">${fB(i.vol)}억</span>
+        <div class="spark-bar" style="width:${bw}px;background:${CAT_HEX[i.cat]}44;border:1px solid ${CAT_HEX[i.cat]}88"></div>
+      </div></td>
+      <td style="color:var(--text3);font-size:11px">${pct}%</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text4)">기준월 아이템 없음</td></tr>`;
+}
+</script>
 </body>
 </html>
